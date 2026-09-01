@@ -1,0 +1,72 @@
+name: Step 0 - Start Exercise
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: write
+  issues: write
+
+jobs:
+  start_exercise:
+    if: ${{ !github.event.repository.is_template }}
+    name: Start Exercise
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Create progress-tracking labels
+        run: |
+          for label in step-1 step-2 step-3 step-4 step-5 step-6 step-7 done; do
+            gh label create "$label" --force \
+              --description "React Foundations progress: $label" \
+              --color "0075ca"
+          done
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create exercise issue
+        id: create_issue
+        run: |
+          ISSUE_URL=$(gh issue create \
+            --title "React Foundations: Beginner Track" \
+            --body "$(cat .github/steps/1-step.md)")
+          ISSUE_NUMBER=$(echo "$ISSUE_URL" | grep -oE '[0-9]+$')
+          echo "issue_number=$ISSUE_NUMBER" >> $GITHUB_OUTPUT
+          echo "Created issue #$ISSUE_NUMBER"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Add step-1 label
+        run: |
+          gh issue edit ${{ steps.create_issue.outputs.issue_number }} \
+            --add-label "step-1"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Post watching-for-progress comment
+        run: |
+          gh issue comment ${{ steps.create_issue.outputs.issue_number }} \
+            --body "$(cat <<'COMMENT'
+> 👀 **We're watching your progress!**
+>
+> Fix the bugs described above, commit your changes, and push to `main`. We'll check your work and post the next exercise here automatically.
+>
+> ```bash
+> git add exercises/01-tooling/starter/
+> git commit -m "fix: add vitejs plugin-react"
+> git push
+> ```
+COMMENT
+)"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Disable this workflow
+        run: gh workflow disable "${{ github.workflow }}"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
